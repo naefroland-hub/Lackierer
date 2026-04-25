@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="de" class="antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lerne Lack - Interaktive Lern-App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 50:'#fef2f2',100:'#fee2e2',500:'#ef4444',600:'#dc2626',700:'#b91c1c',900:'#7f1d1d' },
+                        surface: { 50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',800:'#1e293b',900:'#0f172a' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}.dark ::-webkit-scrollbar-thumb{background:#475569}
+        .markdown-body h1,.markdown-body h2,.markdown-body h3{font-weight:bold;margin-top:1em;margin-bottom:.5em;color:inherit}.markdown-body h1{font-size:1.5em}.markdown-body h2{font-size:1.25em}.markdown-body p{margin-bottom:1em}.markdown-body ul{list-style-type:disc;margin-left:1.5em;margin-bottom:1em}.markdown-body ol{list-style-type:decimal;margin-left:1.5em;margin-bottom:1em}.markdown-body strong{font-weight:600;color:#dc2626}.dark .markdown-body strong{color:#f87171}.markdown-body blockquote{border-left:4px solid #e2e8f0;padding-left:1em;color:#64748b;font-style:italic}.dark .markdown-body blockquote{border-color:#334155;color:#94a3b8}
+        .loader{border:3px solid #f3f3f3;border-bottom:3px solid #dc2626;border-radius:50%;width:20px;height:20px;animation:spin 1s linear infinite}@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+    </style>
+</head>
+<body class="bg-surface-50 text-slate-800 dark:bg-surface-900 dark:text-slate-200 h-screen flex overflow-hidden transition-colors duration-200">
+
+    <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/50 z-20 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
+    <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 w-72 bg-white dark:bg-surface-800 border-r border-slate-200 dark:border-slate-700 z-30 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 flex flex-col">
+        <div class="p-6 flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-3 text-primary-600 dark:text-primary-500">
+                <i class="ph-fill ph-paint-brush-broad text-3xl"></i>
+                <h1 class="text-2xl font-bold tracking-tight">Lerne Lack</h1>
+            </div>
+            <button class="lg:hidden text-slate-500 hover:text-slate-800 dark:hover:text-slate-200" onclick="toggleSidebar()">
+                <i class="ph ph-x text-2xl"></i>
+            </button>
+        </div>
+        <nav class="flex-1 overflow-y-auto p-4 space-y-2">
+            <button onclick="switchView('search')" id="nav-search" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium text-primary-700 bg-primary-50 dark:bg-primary-900/20 dark:text-primary-400 transition-colors">
+                <i class="ph ph-magnifying-glass text-xl"></i>Wissens-Suche
+            </button>
+            <button onclick="switchView('chat')" id="nav-chat" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-surface-700 transition-colors">
+                <i class="ph ph-chat-teardrop-text text-xl"></i>Lern-Chat
+            </button>
+            <button onclick="switchView('tools')" id="nav-tools" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-surface-700 transition-colors">
+                <i class="ph ph-cards text-xl"></i>Lernhilfen
+            </button>
+            <div class="pt-6 pb-2"><p class="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Einstellungen</p></div>
+            <div class="px-4 py-2">
+                <label class="block text-sm font-medium mb-1">Berufsgruppe</label>
+                <div class="relative">
+                    <select id="profession-select" class="w-full appearance-none bg-slate-50 dark:bg-surface-900 border border-slate-200 dark:border-slate-700 text-sm rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer">
+                        <option value="Allgemein">Lackierer Allgemein</option>
+                        <option value="Carrosserielackierer EFZ">Carrosserielackierer</option>
+                        <option value="Industrielackierer EFZ">Industrielackierer</option>
+                        <option value="Lackierassistent EBA">Lackierassistent</option>
+                    </select>
+                    <i class="ph ph-caret-down absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none text-slate-400"></i>
+                </div>
+            </div>
+        </nav>
+        <div class="p-4 border-t border-slate-200 dark:border-slate-700">
+            <button onclick="toggleTheme()" class="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 dark:text-slate-300 dark:border-slate-700 dark:hover:bg-surface-700 transition-colors">
+                <i class="ph ph-moon" id="theme-icon"></i><span id="theme-text">Dunkelmodus</span>
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full w-full bg-surface-50 dark:bg-surface-900 relative">
+        <header class="lg:hidden bg-white dark:bg-surface-800 border-b border-slate-200 dark:border-slate-700 p-4 flex items-center gap-3 shadow-sm">
+            <button onclick="toggleSidebar()" class="text-slate-600 dark:text-slate-300"><i class="ph ph-list text-2xl"></i></button>
+            <h2 class="text-lg font-bold text-primary-600 dark:text-primary-500">Lerne Lack</h2>
+        </header>
+
+        <!-- View: Search -->
+        <section id="view-search" class="view-section flex-1 flex flex-col h-full overflow-hidden">
+            <div class="p-6 md:p-10 max-w-4xl mx-auto w-full flex-shrink-0">
+                <h2 class="text-3xl font-bold mb-2">Wissens-Suche</h2>
+                <p class="text-slate-500 dark:text-slate-400 mb-8">Durchsuche das "Lerne Lack" Fachbuch nach Begriffen und Definitionen.</p>
+                <form id="search-form" class="relative group">
+                    <input type="text" id="search-input" placeholder="Z.B. 'Was ist eine KTL-Beschichtung?' oder 'Schleifmittel'" required
+                        class="w-full bg-white dark:bg-surface-800 border-2 border-slate-200 dark:border-slate-700 text-lg rounded-2xl pl-14 pr-32 py-4 focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/20 transition-all shadow-sm">
+                    <i class="ph ph-magnifying-glass absolute left-5 top-1/2 transform -translate-y-1/2 text-2xl text-slate-400 group-focus-within:text-primary-500 transition-colors"></i>
+                    <button type="submit" class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-primary-600 hover:bg-primary-700 text-white px-6 py-2.5 rounded-xl font-medium transition-colors">Suchen</button>
+                </form>
+            </div>
+            <div id="search-results-container" class="flex-1 overflow-y-auto px-6 md:px-10 pb-10 w-full max-w-4xl mx-auto hidden">
+                <div class="bg-white dark:bg-surface-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
+                    <div id="search-loader" class="hidden flex items-center gap-3 text-slate-500"><div class="loader"></div><span>Durchsuche Fachbuch...</span></div>
+                    <div id="search-content-wrapper" class="flex flex-col gap-4">
+                        <div id="search-content" class="markdown-body"></div>
+                        <div id="search-simple-action" class="hidden border-t border-slate-100 dark:border-slate-700 pt-4 flex flex-col gap-4">
+                            <button id="search-simple-btn" class="self-start text-xs flex items-center gap-1.5 text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 bg-primary-50 hover:bg-primary-100 dark:bg-primary-900/20 dark:hover:bg-primary-900/40 px-3 py-1.5 rounded-lg transition-colors font-medium">
+                                <i class="ph ph-text-aa text-sm"></i> In einfacher Sprache erklären
+                            </button>
+                            <div id="search-simple-content" class="markdown-body bg-slate-50 dark:bg-surface-900/50 p-4 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 hidden"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- View: Chat -->
+        <section id="view-chat" class="view-section hidden flex-1 flex flex-col h-full w-full max-w-4xl mx-auto">
+            <div class="p-6 pb-2 border-b border-slate-200 dark:border-slate-700/50 bg-surface-50 dark:bg-surface-900 z-10">
+                <h2 class="text-2xl font-bold">Lern-Chat</h2>
+                <p class="text-slate-500 dark:text-slate-400 text-sm">Dein persönlicher KI-Tutor für die Lackierausbildung.</p>
+            </div>
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-6">
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center flex-shrink-0 text-primary-600 dark:text-primary-400"><i class="ph-fill ph-robot text-xl"></i></div>
+                    <div class="bg-white dark:bg-surface-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm max-w-[85%]">
+                        <p>Hallo! Ich bin dein Tutor für das Fachbuch <strong>"Lerne Lack"</strong>. Stelle mir Fragen zu Fachkunde, Technologie oder Form &amp; Farbe.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 bg-white dark:bg-surface-800 border-t border-slate-200 dark:border-slate-700 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10 m-4 rounded-2xl">
+                <form id="chat-form" class="flex items-end gap-2">
+                    <textarea id="chat-input" rows="1" placeholder="Stelle eine Frage..." required
+                        class="flex-1 bg-slate-50 dark:bg-surface-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none overflow-hidden min-h-[48px] max-h-[150px]"></textarea>
+                    <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors shadow-sm">
+                        <i class="ph-fill ph-paper-plane-right text-xl"></i>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- View: Tools -->
+        <section id="view-tools" class="view-section hidden flex-1 flex flex-col h-full overflow-hidden">
+            <div class="p-6 md:p-10 max-w-4xl mx-auto w-full flex-shrink-0">
+                <h2 class="text-3xl font-bold mb-2">Lernhilfen Generator</h2>
+                <p class="text-slate-500 dark:text-slate-400 mb-8">Erstelle Übungsmaterialien aus dem "Lerne Lack" Inhalten.</p>
+                <div class="bg-white dark:bg-surface-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 md:p-8">
+                    <form id="tools-form" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-semibold mb-2">Art der Lernhilfe</label>
+                                <select id="tool-type" class="w-full bg-slate-50 dark:bg-surface-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer">
+                                    <option value="Karteikarten (Frage/Antwort Format)">Karteikarten</option>
+                                    <option value="Multiple-Choice Quiz (mit Lösungen am Ende)">Multiple-Choice Quiz</option>
+                                    <option value="Kurzfragen zur Überprüfung">Kurzfragen</option>
+                                    <option value="Zusammenfassung in einfachen Punkten">Zusammenfassung</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold mb-2">Anzahl (1-30)</label>
+                                <input type="number" id="tool-amount" min="1" max="30" value="5" class="w-full bg-slate-50 dark:bg-surface-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-2">Thema</label>
+                            <input type="text" id="tool-topic" placeholder="Z.B. Schleifmittel, Arbeitssicherheit, Kunststoffe..." required
+                                class="w-full bg-slate-50 dark:bg-surface-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        </div>
+                        <div class="flex justify-end pt-2">
+                            <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 rounded-xl font-medium transition-colors shadow-sm flex items-center gap-2">
+                                <i class="ph-bold ph-magic-wand"></i> Generieren
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <div id="tools-results-container" class="flex-1 overflow-y-auto px-6 md:px-10 pb-10 w-full max-w-4xl mx-auto hidden">
+                <div class="bg-white dark:bg-surface-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full min-h-[400px]">
+                    <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-surface-800 rounded-t-2xl">
+                        <h3 class="font-bold text-lg flex items-center gap-2"><i class="ph-fill ph-file-text text-primary-500"></i> Resultat</h3>
+                        <div class="flex gap-2">
+                            <button onclick="exportResult('txt')" class="px-3 py-1.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-surface-700 transition-colors flex items-center gap-2"><i class="ph ph-file-txt"></i> TXT</button>
+                            <button onclick="exportResult('pdf')" class="px-3 py-1.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-surface-700 transition-colors flex items-center gap-2"><i class="ph ph-file-pdf"></i> PDF</button>
+                        </div>
+                    </div>
+                    <div class="p-6 md:p-8 flex-1 overflow-y-auto">
+                        <div id="tools-loader" class="hidden flex items-center gap-3 text-slate-500 justify-center h-full"><div class="loader"></div><span>Erstelle Lernmaterial...</span></div>
+                        <div id="tools-content" class="markdown-body"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_URL = '/api/gemini';
+
+        const BOOK_CONTEXT = `
+Du bist ein KI-Tutor fuer das Fachbuch "Lerne Lack" (Ausgabe 2023, AVA Color).
+Deine Aufgabe ist es, Fragen basierend AUF DIESEM BUCH zu beantworten.
+Wenn etwas nicht im Buch steht, antworte strikt: "Diese Information ist nicht in meinem Lernmaterial (Lerne Lack) enthalten."
+
+**NUTZE ZWINGEND DIESES INHALTSVERZEICHNIS FUER DEINE SEITENZAHLEN:**
+
+1 Fachkunde
+1.01 Grund- und Weiterbildung (S. 11)
+1.02 Weiterbildung im Carrosseriegewerbe (S. 15)
+1.03 Geschichtlicher Rueckblick (S. 21)
+1.04 Karosserieformen (S. 36)
+1.05 Arbeitssicherheit (S. 53)
+1.06 Umweltschutz - oekologische Grundlagen (S. 118)
+1.07 Umweltschutz - rechtliche Grundlagen (S. 132)
+1.08 Umweltschutz im Lackiergewerbe (S. 139)
+1.09 Vorbehandlungsarten von metallischen Untergruenden (S. 145)
+1.10 Pulverbeschichtung/Wirbelsinterung/Tauch- und Flutanlagen/Gehaenge und Foerdertechnik (S. 176)
+1.11 Schleifmittel (S. 208)
+1.12 Schleifmaschinen (S. 216)
+1.13 Abdeckmaterialien (S. 226)
+1.14 Werkzeuge, Geraete und Einrichtungen (S. 229)
+1.15 Betriebsorganisation, Betriebliches Sozialwesen, Teambildung (S. 337)
+1.16 Kundengerechte Umgangsformen (S. 344)
+1.17 Qualitaet - Qualitaetssicherung, Nachhaltigkeit (S. 350)
+1.18 Lack- und Lackierschaeden (S. 356)
+1.19 Lack- und Fahrzeugreinigung, Lackpflege (S. 378)
+
+2 Technologie
+2.01 Grundlagen Chemie, Physik (S. 405)
+2.02 Physikalische Grundbegriffe (S. 418)
+2.03 Chemische Grundbegriffe (S. 445)
+2.04 Produkte-Merkblaetter (S. 470)
+2.05 Uebersicht Verarbeitungs-Piktogramme (S. 471)
+2.06 Lackbestandteile, Zusammensetzung eines Beschichtungsstoffes (S. 477)
+2.07 Bestandteile der Beschichtungsstoffe - Bindemittel (S. 478)
+2.08 Bestandteile der Beschichtungsstoffe - Pigmente (S. 488)
+2.09 Bestandteile der Beschichtungsstoffe - Additive (S. 505)
+2.10 Bestandteile der Beschichtungsstoffe - Loese- und Verduennungsmittel (S. 511)
+2.11 Lack- und Werkstoffpruefverfahren (S. 517)
+2.12 Ablauf einer Serienlackierung - Automobilproduktion (S. 524)
+2.13 Fahrzeug-Elektrik und -Elektronik (S. 529)
+2.14 Lackaufbaumaterialien (S. 547)
+2.15 Metallische Untergruende und Lackaufbau (S. 555)
+2.16 Kunststoffe - Kunststoffuntergruende (S. 592)
+
+3 Form und Farbe
+3.01 Physikalische Grundbegriffe - Optik (S. 607)
+3.02 Mischordnung, Ordnungssysteme, Kontraste (S. 641)
+3.03 Gestalten von Flaechen (S. 667)
+3.04 Folienkunde, Applikation, Beschriftungstechnik (S. 676)
+
+**Regeln:**
+1. Beziehe dich IMMER auf Lackiertechnik, Carrosserie, Vorbehandlung, etc.
+2. Quellenangabe ans Ende: "(vgl. Fachbuch Lerne Lack, Kapitel [Nr/Name], ab S. [Seite])"
+3. Nutze stets Markdown Formatierung.
+4. Passe dein Vokabular an den angegebenen Beruf der Zielgruppe an.
+`;
+
+        let chatHistory = [];
+        let currentSearchText = "";
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('mobile-overlay').classList.toggle('hidden');
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('theme-icon').className = isDark ? 'ph ph-sun' : 'ph ph-moon';
+            document.getElementById('theme-text').innerText = isDark ? 'Heller Modus' : 'Dunkelmodus';
+        }
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('text-primary-700','bg-primary-50','dark:bg-primary-900/20','dark:text-primary-400');
+                el.classList.add('text-slate-600','dark:text-slate-400');
+            });
+            document.getElementById('view-'+viewId).classList.remove('hidden');
+            const btn = document.getElementById('nav-'+viewId);
+            btn.classList.remove('text-slate-600','dark:text-slate-400');
+            btn.classList.add('text-primary-700','bg-primary-50','dark:bg-primary-900/20','dark:text-primary-400');
+            if (window.innerWidth < 1024) toggleSidebar();
+        }
+
+        function getProfessionContext() {
+            const p = document.getElementById('profession-select').value;
+            const map = {
+                'Lackierassistent EBA': "SEHR EINFACHE Sprache, kurze Saetze, reine Praxis, wenig Chemie.",
+                'Industrielackierer EFZ': "Fokus auf Vorbehandlung, Pulverbeschichtung, industrielle Applikation, Serienlackierung.",
+                'Carrosserielackierer EFZ': "Fokus auf Fahrzeuglackierung, Spot-Repair, Kunststoffe am Auto, Farbtonmessung."
+            };
+            return `Zielgruppe: ${p}. ${map[p] || "Allgemeines Lackierwissen."}`;
+        }
+
+        async function fetchGemini(promptText, isChat = false) {
+            const systemInstruction = BOOK_CONTEXT + "\n" + getProfessionContext();
+            const payload = {
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+                contents: isChat
+                    ? [...chatHistory, { role:"user", parts:[{text:promptText}] }]
+                    : [{ role:"user", parts:[{text:promptText}] }]
+            };
+            let retries = 5, delay = 1000;
+            while (retries > 0) {
+                try {
+                    const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+                    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error.message || "API Error");
+                    const text = data.candidates[0].content.parts[0].text;
+                    if (isChat) {
+                        chatHistory.push({role:"user",parts:[{text:promptText}]});
+                        chatHistory.push({role:"model",parts:[{text}]});
+                    }
+                    return text;
+                } catch (err) {
+                    retries--;
+                    if (retries === 0) return `Fehler: ${err.message}`;
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                }
+            }
+        }
+
+        /* SEARCH */
+        document.getElementById('search-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const query = document.getElementById('search-input').value;
+            document.getElementById('search-results-container').classList.remove('hidden');
+            document.getElementById('search-content').innerHTML = '';
+            document.getElementById('search-simple-content').classList.add('hidden');
+            document.getElementById('search-simple-action').classList.add('hidden');
+            document.getElementById('search-loader').classList.remove('hidden');
+            document.getElementById('search-content').classList.add('hidden');
+            const result = await fetchGemini(`Erklaere kurz und praezise basierend auf 'Lerne Lack': "${query}". Mit Kapitel- und Seitenangabe.`);
+            currentSearchText = result;
+            document.getElementById('search-loader').classList.add('hidden');
+            document.getElementById('search-content').classList.remove('hidden');
+            document.getElementById('search-content').innerHTML = marked.parse(result);
+            document.getElementById('search-simple-action').classList.remove('hidden');
+        });
+
+        document.getElementById('search-simple-btn').addEventListener('click', async () => {
+            const c = document.getElementById('search-simple-content');
+            c.classList.remove('hidden');
+            c.innerHTML = '<div class="flex items-center gap-2 text-sm text-slate-500"><div class="loader w-4 h-4 border-2"></div> Vereinfache Text...</div>';
+            const result = await fetchGemini(`Erklaere in Leichter Sprache (kurze Saetze, keine Fremdwoerter). Seitenangabe beibehalten:\n\n"${currentSearchText}"`);
+            c.innerHTML = `<div class="text-xs font-bold text-primary-600 mb-2 uppercase tracking-wider flex items-center gap-1"><i class="ph-fill ph-sparkle"></i> Einfache Sprache:</div>` + marked.parse(result);
+        });
+
+        /* CHAT */
+        function appendChatMessage(text, isUser = false) {
+            const cc = document.getElementById('chat-messages');
+            const d = document.createElement('div');
+            d.className = `flex items-start gap-4 ${isUser ? 'flex-row-reverse' : ''}`;
+            d.innerHTML = isUser
+                ? `<div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-surface-700 flex items-center justify-center flex-shrink-0 text-slate-600 dark:text-slate-300"><i class="ph-fill ph-user text-xl"></i></div>`
+                : `<div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center flex-shrink-0 text-primary-600 dark:text-primary-400"><i class="ph-fill ph-robot text-xl"></i></div>`;
+            const bc = document.createElement('div');
+            bc.className = 'max-w-[85%] flex flex-col gap-2';
+            const td = document.createElement('div');
+            td.className = `markdown-body bg-white dark:bg-surface-800 border border-slate-200 dark:border-slate-700 rounded-2xl ${isUser ? 'rounded-tr-none bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-800' : 'rounded-tl-none'} px-5 py-4 shadow-sm overflow-x-auto`;
+            td.innerHTML = marked.parse(text);
+            bc.appendChild(td);
+            if (!isUser) {
+                const ad = document.createElement('div');
+                ad.className = 'flex justify-start';
+                const btn = document.createElement('button');
+                btn.className = 'text-xs flex items-center gap-1.5 text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 bg-primary-50 hover:bg-primary-100 dark:bg-primary-900/20 dark:hover:bg-primary-900/40 px-3 py-1.5 rounded-lg transition-colors font-medium';
+                btn.innerHTML = `<i class="ph ph-text-aa text-sm"></i> In einfacher Sprache erklaeren`;
+                btn.onclick = () => explainSimple(text);
+                ad.appendChild(btn);
+                bc.appendChild(ad);
+            }
+            d.appendChild(bc);
+            cc.appendChild(d);
+            cc.scrollTo({top: cc.scrollHeight, behavior:'smooth'});
+        }
+
+        function typingBubble(id) {
+            return `<div id="${id}" class="flex items-start gap-4">
+                <div class="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/50 flex items-center justify-center flex-shrink-0 text-primary-600 dark:text-primary-400"><i class="ph-fill ph-robot text-xl"></i></div>
+                <div class="bg-white dark:bg-surface-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm max-w-[85%]"><div class="loader w-5 h-5 border-2"></div></div>
+            </div>`;
+        }
+
+        async function explainSimple(textToExplain) {
+            appendChatMessage("Kannst du das bitte in einfacher Sprache erklaeren?", true);
+            const id = 'typing-' + Date.now();
+            const cc = document.getElementById('chat-messages');
+            cc.insertAdjacentHTML('beforeend', typingBubble(id));
+            cc.scrollTo({top: cc.scrollHeight, behavior:'smooth'});
+            const response = await fetchGemini(`Erklaere in Leichter Sprache (kurze Saetze, keine Fremdwoerter). Quellenangaben beibehalten:\n\n"${textToExplain}"`, true);
+            document.getElementById(id).remove();
+            appendChatMessage(response, false);
+        }
+
+        const chatInput = document.getElementById('chat-input');
+        chatInput.addEventListener('input', function() { this.style.height='auto'; this.style.height=this.scrollHeight+'px'; });
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('chat-form').dispatchEvent(new Event('submit')); }
+        });
+
+        document.getElementById('chat-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const text = chatInput.value.trim();
+            if (!text) return;
+            chatInput.value = ''; chatInput.style.height = 'auto';
+            appendChatMessage(text, true);
+            const id = 'typing-' + Date.now();
+            const cc = document.getElementById('chat-messages');
+            cc.insertAdjacentHTML('beforeend', typingBubble(id));
+            cc.scrollTo({top: cc.scrollHeight, behavior:'smooth'});
+            const response = await fetchGemini(text, true);
+            document.getElementById(id).remove();
+            appendChatMessage(response, false);
+        });
+
+        /* TOOLS */
+        let lastGeneratedToolRawText = "";
+        document.getElementById('tools-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const type = document.getElementById('tool-type').value;
+            const amount = document.getElementById('tool-amount').value;
+            const topic = document.getElementById('tool-topic').value;
+            document.getElementById('tools-results-container').classList.remove('hidden');
+            document.getElementById('tools-content').innerHTML = '';
+            document.getElementById('tools-loader').classList.remove('hidden');
+            document.getElementById('tools-content').classList.add('hidden');
+            const prompt = `Erstelle eine Lernhilfe fuer 'Lerne Lack'.\nThema: ${topic}\nArt: ${type}\nAnzahl: ${amount} Stueck.\nLoesungen einschliessen. Markdown-Formatierung. Titel "${type}: ${topic}" als H1.`;
+            const result = await fetchGemini(prompt, false);
+            lastGeneratedToolRawText = result;
+            document.getElementById('tools-loader').classList.add('hidden');
+            document.getElementById('tools-content').classList.remove('hidden');
+            document.getElementById('tools-content').innerHTML = marked.parse(result);
+        });
+
+        function exportResult(format) {
+            if (!lastGeneratedToolRawText) return;
+            const topic = document.getElementById('tool-topic').value.replace(/[^a-z0-9]/gi,'_').toLowerCase();
+            const filename = `LerneLack_${topic}.${format}`;
+            if (format === 'txt') {
+                const blob = new Blob([lastGeneratedToolRawText], {type:'text/plain;charset=utf-8'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href=url; a.download=filename;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } else if (format === 'pdf') {
+                const {jsPDF} = window.jspdf;
+                const doc = new jsPDF();
+                doc.setFont("helvetica","normal"); doc.setFontSize(12);
+                const lines = doc.splitTextToSize(lastGeneratedToolRawText.replace(/#/g,''), 180);
+                let y = 20; doc.text('Lerne Lack - Export', 15, 10); doc.setFontSize(10);
+                lines.forEach(line => { if (y > 280) { doc.addPage(); y = 20; } doc.text(line, 15, y); y += 6; });
+                doc.save(filename);
+            }
+        }
+    </script>
+</body>
+</html>
